@@ -7,10 +7,11 @@ import (
 )
 
 type Column struct {
-	Name     string  `db:"column_name"`
-	Type     string  `db:"data_type"`
-	Default  *string `db:"column_default"`
-	Nullable string  `db:"is_nullable"`
+	Name          string  `db:"column_name"`
+	CharMaxLength *uint16 `db:"character_maximum_length"`
+	Type          string  `db:"data_type"`
+	Default       *string `db:"column_default"`
+	Nullable      string  `db:"is_nullable"`
 }
 
 type Table struct {
@@ -51,7 +52,7 @@ func GetAllTables(conn *connector.Connector) []*Table {
 
 	for _, tb := range allTables {
 		qColumns := fmt.Sprintf(`
-            SELECT column_name, data_type, column_default, is_nullable FROM information_schema.columns
+            SELECT column_name, data_type, column_default, character_maximum_length, is_nullable FROM information_schema.columns
             WHERE table_schema = 'public' AND table_name = '%s'
         `, tb.Name)
 
