@@ -4,20 +4,7 @@ import (
     "fmt"
     "log"
     "github.com/billyninja/pgtools/connector"
-    "github.com/jmoiron/sqlx"
 )
-
-
-func sel(conn *connector.Connector, q string) (*sqlx.Rows, error) {
-    var rows *sqlx.Rows
-    rows, err := conn.DB.Queryx(q)
-    if err != nil {
-        log.Println("%v", err)
-        log.Println(q)
-    }
-
-    return rows, err
-}
 
 type Column struct {
     Name        string      `db:"column_name"`
@@ -46,7 +33,7 @@ func (t Table) String() string {
 
 func GetAllTables(conn *connector.Connector) []*Table {
     qTables := "SELECT table_name, table_type FROM information_schema.tables WHERE table_schema='public';"
-    rows, err := sel(conn, qTables)
+    rows, err := conn.Sel(qTables)
     if err != nil {
         log.Panic("-")
     }
@@ -68,7 +55,7 @@ func GetAllTables(conn *connector.Connector) []*Table {
             WHERE table_schema = 'public' AND table_name = '%s'
         `, tb.Name)
 
-        rows, err := sel(conn, qColumns)
+        rows, err := conn.Sel(qColumns)
         if err != nil {
             log.Panic("err parsing table struct:\n %v", err)
         }

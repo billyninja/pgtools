@@ -25,5 +25,5 @@ func main() {
         *FlagDBName)
 
     allTables := scanner.GetAllTables(conn)
-    filler.Fill(allTables[0], 2000)
+    filler.Fill(conn, allTables[0], 2000)
 }
