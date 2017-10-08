@@ -1,8 +1,9 @@
 package rnd
 
 import (
-	"math/rand"
+    "fmt"
 	"time"
+    "math/rand"
 )
 
 const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -16,7 +17,7 @@ func RandString(n int) string {
 }
 
 // varying char
-func r_char() string {
+func r_char() byte {
 	return letters[rand.Intn(len(letters))]
 }
 
@@ -32,13 +33,13 @@ func r_text() string {
 }
 
 // SMALLINT, INTEGER, AND BIGINT
-func r_int(max int64) int64 {
+func r_int(max int) int {
 	return rand.Intn(max)
 }
 
 // NUMERIC with varying precision
 func r_numeric(max float64) float64 {
-	return rand.Float64(max)
+	return (0.1 + rand.Float64()) * (max - 0.1)
 }
 
 // timestamp etc.
@@ -49,10 +50,10 @@ func r_datetime(relative int8) time.Time {
 
 	mod := rand.Intn(1024)
 	if relative > 0 {
-		return time.Now().Add(mod * time.Minute)
+		return time.Now().Add(time.Duration(mod) * time.Minute)
 	}
 
-	return time.Now().Truncate(mod * time.Minute)
+	return time.Now().Truncate(time.Duration(mod) * time.Minute)
 }
 
 // interval       16bytes
@@ -61,14 +62,14 @@ func r_interval(relative int8) time.Duration {
 }
 
 // https://www.postgresql.org/docs/9.3/static/datatype-binary.html
-func r_byte_array(min, max int64) []byte {
+func r_byte_array(min, max int) []byte {
 	out := r_var_char(min, max)
 	return []byte(out)
 }
 
 func PSQL_char() string {
 	r := r_char()
-	return r
+	return string(r)
 }
 func PSQL_var_char(min, max int) string {
 	r := r_var_char(min, max)
@@ -80,7 +81,7 @@ func PSQL_text() string {
 	return r
 }
 
-func PSQL_int(max int64) int64 {
+func PSQL_int(max int) int {
 	return r_int(max)
 }
 
@@ -90,7 +91,7 @@ func PSQL_numeric(max float64, places uint8) float64 {
 	return r
 }
 
-func PSQL_datetime(rel uint8, fmt uint8) string {
+func PSQL_datetime(rel int8, fmt uint8) string {
 
 	// 0 timestamp       8 bytes WITHOUT timezone
 	// 1 timestamp       8 bytes WITH timezone
@@ -102,19 +103,19 @@ func PSQL_datetime(rel uint8, fmt uint8) string {
 	rs := ""
 	switch fmt {
 	case 0:
-		rs := r.format("2006-02-01")
+		rs = r.Format("2006-02-01")
 		break
 	case 1:
-		rs := r.format("2006-02-01")
+		rs = r.Format("2006-02-01")
 		break
 	case 2:
-		rs := r.format("2006-02-01")
+		rs = r.Format("2006-02-01")
 		break
 	case 3:
-		rs := r.format("2006-02-01")
+		rs = r.Format("2006-02-01")
 		break
 	case 4:
-		rs := r.format("2006-02-01")
+		rs = r.Format("2006-02-01")
 		break
 	}
 
@@ -122,10 +123,10 @@ func PSQL_datetime(rel uint8, fmt uint8) string {
 }
 
 func PSQL_interval() string {
-	r := r_interval()
-	return r
+	r := r_interval(1)
+	return fmt.Sprintf("%s", r)
 }
 
-func PSQL_byte_array() string {
-	return r_byte_array()
+func PSQL_byte_array(min, max int) string {
+	return string(r_byte_array(min, max))
 }
