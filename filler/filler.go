@@ -10,10 +10,14 @@ import (
 	"time"
 )
 
-func BaseInsertQuery(tb *scanner.Table) string {
+func BaseInsertQuery(tb *scanner.Table, skip_nullable uint8) string {
 	base := fmt.Sprintf(`INSERT INTO "%s" (`, tb.Name)
 	nc := len(tb.Columns)
-	for i, c := range tb.Columns {
+
+    for i, c := range tb.Columns {
+        if skip_nullable > 0 && c.Nullable == "YES" {
+            continue
+        }
 		base += c.Name
 		if nc > i+1 {
 			base += ", "
@@ -44,7 +48,7 @@ func Fill(conn *connector.Connector, tb *scanner.Table, nrows int64) {
 	rand.Seed(time.Now().UnixNano())
     i := int64(0)
 	for i < nrows {
-		_, _, err := conn.Insert(BaseInsertQuery(tb))
+		_, _, err := conn.Insert(BaseInsertQuery(tb, 1))
 		if err != nil {
 			log.Printf("\n\n\n\n%v\n\n\n\n", err)
 			return

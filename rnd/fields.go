@@ -106,19 +106,19 @@ func PSQL_datetime(rel int8, fm uint8) string {
 	rs := ""
 	switch fm {
 	case 0:
-		rs = r.Format("2006-02-01")
+		rs = r.Format("2006-01-02 15:04:05")
 		break
 	case 1:
-		rs = r.Format("2006-02-01")
+		rs = r.Format("2006-01-02 15:04:05")
 		break
 	case 2:
-		rs = r.Format("2006-02-01")
+		rs = r.Format("2006-01-02")
 		break
 	case 3:
-		rs = r.Format("2006-02-01")
+		rs = r.Format("15:04:05")
 		break
 	case 4:
-		rs = r.Format("2006-02-01")
+		rs = r.Format("15:04:05")
 		break
 	}
 

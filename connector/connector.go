@@ -55,18 +55,19 @@ func (conn *Connector) Insert(q string) (bool, bool, error) {
 	persisted := false
 	pos := len(conn.WriteAcc) + 1
 	conn.WriteAcc = append(conn.WriteAcc, q)
+    var err error
     if (conn.WriteCfg.AccLimit > 0 && pos >= conn.WriteCfg.AccLimit) || (conn.WriteCfg.FlushTimeout > time.Second*0 && time.Since(conn.LastFlush) >= conn.WriteCfg.FlushTimeout && pos > 0) {
-        conn.FlushNow()
+        err = conn.FlushNow()
         persisted = true
     } else {
 		log.Println("<ACCD!>")
 	}
 
-	return true, persisted, nil
+	return true, persisted, err
 }
 
 
-func (conn *Connector) FlushNow() {
+func (conn *Connector) FlushNow() error {
     tq := strings.Join(conn.WriteAcc, "; ")
     println(tq)
     t1 := time.Now()
@@ -74,9 +75,12 @@ func (conn *Connector) FlushNow() {
     lat := time.Since(t1)
     if err != nil {
         log.Println(tq)
+        return err
     }
     log.Printf("<PERSISTED! %d - s: %d l: %s>\n", len(conn.WriteAcc), len(tq), lat)
 
     conn.WriteAcc = []string{}
     conn.LastFlush = time.Now()
+
+    return err
 }
