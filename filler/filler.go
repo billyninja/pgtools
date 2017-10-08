@@ -12,17 +12,15 @@ import (
 
 func BaseInsertQuery(tb *scanner.Table, skip_nullable uint8) string {
 	base := fmt.Sprintf(`INSERT INTO "%s" (`, tb.Name)
-	nc := len(tb.Columns)
 
-    for i, c := range tb.Columns {
+    for _, c := range tb.Columns {
         if skip_nullable > 0 && c.Nullable == "YES" {
             continue
         }
 		base += c.Name
-		if nc > i+1 {
-			base += ", "
-		}
+		base += ", "
 	}
+    base = base[0:len(base) - 2]
 
     v1 := fmt.Sprintf(
         "(%s, %s, %s, %s, %s, %s, %s, %.2f, %.2f, %.2f , '{}', FALSE)",
