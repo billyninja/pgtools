@@ -35,7 +35,7 @@ func GetAllTables(conn *connector.Connector) []*Table {
 	qTables := "SELECT table_name, table_type FROM information_schema.tables WHERE table_schema='public';"
 	rows, err := conn.Sel(qTables)
 	if err != nil {
-		log.Panic("-")
+		log.Panic("err:", err)
 	}
 
 	var allTables []*Table

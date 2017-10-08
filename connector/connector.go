@@ -54,23 +54,29 @@ func (conn *Connector) Sel(q string) (*sqlx.Rows, error) {
 func (conn *Connector) Insert(q string) (bool, bool, error) {
 	persisted := false
 	pos := len(conn.WriteAcc) + 1
-	if (conn.WriteCfg.AccLimit > 0 && pos >= conn.WriteCfg.AccLimit) || (conn.WriteCfg.FlushTimeout > time.Second*0 && time.Since(conn.LastFlush) >= conn.WriteCfg.FlushTimeout) {
-		tq := strings.Join(conn.WriteAcc, "; ")
-		t1 := time.Now()
-		_, err := conn.DB.Exec(tq)
-		lat := time.Since(t1)
-		if err != nil {
-			log.Println(tq)
-			return false, false, err
-		}
-		persisted = true
-		conn.WriteAcc = []string{}
-		conn.LastFlush = time.Now()
-		log.Printf("<PERSISTED! %d - s: %d l: %s>\n", pos, len(tq), lat)
-	} else {
-		conn.WriteAcc = append(conn.WriteAcc, q)
+	conn.WriteAcc = append(conn.WriteAcc, q)
+    if (conn.WriteCfg.AccLimit > 0 && pos >= conn.WriteCfg.AccLimit) || (conn.WriteCfg.FlushTimeout > time.Second*0 && time.Since(conn.LastFlush) >= conn.WriteCfg.FlushTimeout && pos > 0) {
+        conn.FlushNow()
+        persisted = true
+    } else {
 		log.Println("<ACCD!>")
 	}
 
 	return true, persisted, nil
+}
+
+
+func (conn *Connector) FlushNow() {
+    tq := strings.Join(conn.WriteAcc, "; ")
+    println(tq)
+    t1 := time.Now()
+    _, err := conn.DB.Exec(tq)
+    lat := time.Since(t1)
+    if err != nil {
+        log.Println(tq)
+    }
+    log.Printf("<PERSISTED! %d - s: %d l: %s>\n", len(conn.WriteAcc), len(tq), lat)
+
+    conn.WriteAcc = []string{}
+    conn.LastFlush = time.Now()
 }

@@ -23,8 +23,11 @@ func r_char() byte {
 
 // varying char
 func r_var_char(min, max int) string {
-	s := min + rand.Intn(max-min)
-	return RandString(s)
+    if (max - min) == 0 {
+	   return RandString(max)
+    }
+    s := min + rand.Intn(max - min)
+    return RandString(s)
 }
 
 // text
@@ -73,7 +76,7 @@ func PSQL_char() string {
 }
 func PSQL_var_char(min, max int) string {
 	r := r_var_char(min, max)
-	return r
+    return fmt.Sprintf("'%s'", r)
 }
 
 func PSQL_text() string {
@@ -91,7 +94,7 @@ func PSQL_numeric(max float64, places uint8) float64 {
 	return r
 }
 
-func PSQL_datetime(rel int8, fmt uint8) string {
+func PSQL_datetime(rel int8, fm uint8) string {
 
 	// 0 timestamp       8 bytes WITHOUT timezone
 	// 1 timestamp       8 bytes WITH timezone
@@ -101,7 +104,7 @@ func PSQL_datetime(rel int8, fmt uint8) string {
 
 	r := r_datetime(rel)
 	rs := ""
-	switch fmt {
+	switch fm {
 	case 0:
 		rs = r.Format("2006-02-01")
 		break
@@ -119,7 +122,7 @@ func PSQL_datetime(rel int8, fmt uint8) string {
 		break
 	}
 
-	return rs
+	return fmt.Sprintf("'%s'", rs)
 }
 
 func PSQL_interval() string {
