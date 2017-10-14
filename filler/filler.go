@@ -11,7 +11,6 @@ import (
 )
 
 func rndColumn(cl *scanner.Column) string {
-
 	switch cl.Type {
 	case "numeric":
 		v := rnd.PSQL_numeric(99999.99, 2)
@@ -26,6 +25,10 @@ func rndColumn(cl *scanner.Column) string {
 		return rnd.PSQL_datetime(1, 2)
 	case "timestamp without time zone":
 		return rnd.PSQL_datetime(0, 0)
+	case "boolean":
+		return rnd.PSQL_bool()
+	case "json":
+		return "'{}'"
 	default:
 		fmt.Printf("\n\nRAND DATA-TYPE NOT IMPLEMENTED: %s\n\n", cl.Type)
 		break
@@ -60,12 +63,12 @@ func Fill(conn *connector.Connector, tb *scanner.Table, nrows int64) {
 	rand.Seed(time.Now().UnixNano())
 	i := int64(0)
 	for i < nrows {
-		_, _, err := conn.Insert(BaseInsertQuery(tb, 1))
+		_, _, err := conn.Insert(BaseInsertQuery(tb, 0))
 		if err != nil {
 			log.Printf("\n\n\n\n%v\n\n\n\n", err)
 			return
 		}
-		time.Sleep(1 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 		i += 1
 	}
 	conn.FlushNow()

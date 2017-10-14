@@ -133,3 +133,10 @@ func PSQL_interval() string {
 func PSQL_byte_array(min, max int) string {
 	return string(r_byte_array(min, max))
 }
+
+func PSQL_bool() string {
+	if (rand.Intn(1000)%2) > 0 {
+		return "true"
+	}
+	return "false"
+}

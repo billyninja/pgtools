@@ -21,6 +21,21 @@ type Connector struct {
 	LastFlush time.Time
 }
 
+func (cn *Connector) CheckFlushTimeout() {
+    for {
+        if (cn.WriteCfg.FlushTimeout > 0*time.Second && time.Since(cn.LastFlush) >= cn.WriteCfg.FlushTimeout) && len(cn.WriteAcc) > 0 {
+            println("<HERE>")
+            err := cn.FlushNow()
+            if err != nil {
+                println("<ERRD AT TIMEOUT ENGINE>")
+                continue
+            }
+        }
+
+        time.Sleep(1 * time.Second)
+    }
+}
+
 func NewConnector(host, port, user, pass, db string) (*Connector, error) {
 	strConn := fmt.Sprintf(
 		"dbname=%s user=%s password=%s host=%s port=%s sslmode=disable",
@@ -32,12 +47,17 @@ func NewConnector(host, port, user, pass, db string) (*Connector, error) {
 	)
 	dbc := sqlx.MustOpen("postgres", strConn)
 
-	wcfg := &WriteCfg{100, 10 * time.Second}
-	return &Connector{
+	wcfg := &WriteCfg{100, 3 * time.Second}
+	cn := &Connector{
 		WriteCfg: wcfg,
 		WriteAcc: []string{},
 		DB:       dbc,
-	}, nil
+	}
+    go func(){
+        cn.CheckFlushTimeout()
+    }()
+
+    return cn, nil
 }
 
 func (conn *Connector) Sel(q string) (*sqlx.Rows, error) {
@@ -56,7 +76,7 @@ func (conn *Connector) Insert(q string) (bool, bool, error) {
 	pos := len(conn.WriteAcc) + 1
 	conn.WriteAcc = append(conn.WriteAcc, q)
     var err error
-    if (conn.WriteCfg.AccLimit > 0 && pos >= conn.WriteCfg.AccLimit) || (conn.WriteCfg.FlushTimeout > time.Second*0 && time.Since(conn.LastFlush) >= conn.WriteCfg.FlushTimeout && pos > 0) {
+    if (conn.WriteCfg.AccLimit > 0 && pos >= conn.WriteCfg.AccLimit) {
         err = conn.FlushNow()
         persisted = true
     } else {
@@ -69,7 +89,6 @@ func (conn *Connector) Insert(q string) (bool, bool, error) {
 
 func (conn *Connector) FlushNow() error {
     tq := strings.Join(conn.WriteAcc, "; ")
-    println(tq)
     t1 := time.Now()
     _, err := conn.DB.Exec(tq)
     lat := time.Since(t1)
