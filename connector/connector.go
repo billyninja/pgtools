@@ -24,7 +24,6 @@ type Connector struct {
 func (cn *Connector) CheckFlushTimeout() {
     for {
         if (cn.WriteCfg.FlushTimeout > 0*time.Second && time.Since(cn.LastFlush) >= cn.WriteCfg.FlushTimeout) && len(cn.WriteAcc) > 0 {
-            println("<HERE>")
             err := cn.FlushNow()
             if err != nil {
                 println("<ERRD AT TIMEOUT ENGINE>")
@@ -79,9 +78,7 @@ func (conn *Connector) Insert(q string) (bool, bool, error) {
     if (conn.WriteCfg.AccLimit > 0 && pos >= conn.WriteCfg.AccLimit) {
         err = conn.FlushNow()
         persisted = true
-    } else {
-		log.Println("<ACCD!>")
-	}
+    }
 
 	return true, persisted, err
 }

@@ -24,6 +24,26 @@ const (
 	FillUntil
 )
 
+
+type SimulationParams struct {
+	Wipe 				WipeMode
+	Count 				int64
+	CountMode   		CountMode
+	InsertsPerSecond	int
+	ReadsPerSecond		int
+	SleepPerInsert		time.Duration
+	SleepPerRead 		time.Duration
+}
+
+
+type FillReport struct {
+	StartTime 		time.Time
+	EndTime 		time.Time
+	TotalWrites		uint64
+    TotalReads		uint64
+}
+
+
 func rndColumn(cl *scanner.Column) string {
 	switch cl.Type {
 	case "numeric":
@@ -74,41 +94,71 @@ func BaseInsertQuery(tb *scanner.Table, skip_nullable uint8) string {
 }
 
 
-type SimulationParams struct {
-	Wipe 			WipeMode
-	Count 			int64
-	CountMode   	CountMode
-	SleepPerInsert	time.Duration
+type Count struct {
+	Cnt int `db:"cnt"`
 }
 
+func Read(conn *connector.Connector, tb *scanner.Table) {
+	sql_count := fmt.Sprintf(`SELECT COUNT(*) as cnt FROM "%s";`, tb.Name)
+	t1 := time.Now()
+	rows, err := conn.Sel(sql_count)
+	latency := time.Since(t1)
 
-type FillReport struct {
-	StartTime 		time.Time
-	EndTime 		time.Time
-	TotalWrites		uint64
-    TotalReads		uint64
+	if err != nil {
+		log.Panic("Error at COUNT: %+v", err)
+	}
+
+	for rows.Next() {
+		curr_cnt := &Count{}
+		err := rows.StructScan(curr_cnt)
+		if err != nil {
+			log.Panic("err parsing table struct:\n %v", err)
+		}
+		log.Printf("Count >> %d %v", curr_cnt.Cnt, latency)
+	}
+}
+
+func Wipe(conn *connector.Connector, tb *scanner.Table) {
+	sql_wipe := fmt.Sprintf(`DELETE FROM "%s";`, tb.Name)
+	_, _, err := conn.Insert(sql_wipe)
+	if err != nil {
+		log.Panic("Error at WIPE: %+v", err)
+	}
+	conn.FlushNow()
+}
+
+func ReadEngine(conn *connector.Connector, tb *scanner.Table, sleep time.Duration) {
+	go func(){
+		for {
+			Read(conn, tb)
+			time.Sleep(sleep)
+		}
+	}()
 }
 
 
 func Fill(conn *connector.Connector, tb *scanner.Table, params *SimulationParams) {
 	rand.Seed(time.Now().UnixNano())
+	Read(conn, tb)
 
-	sql_wipe := fmt.Sprintf(`DELETE FROM "%s";`, tb.Name)
-	sql_count := fmt.Sprintf(`SELECT COUNT(*) FROM "%s";`, tb.Name)
+	if params.Wipe == WipeBefore || params.Wipe == WipeBeforeAndAfter {
+		Wipe(conn, tb)
+	}
 
-	println(sql_wipe)
-	println("====")
-	println(sql_count)
+	ReadEngine(conn, tb, params.SleepPerRead)
 
 	i := int64(0)
 	for i < params.Count {
 		_, _, err := conn.Insert(BaseInsertQuery(tb, 0))
 		if err != nil {
-			log.Printf("\n\n\n\n%v\n\n\n\n", err)
-			return
+			log.Panic("\n\n\n\n%v\n\n\n\n", err)
 		}
 		time.Sleep(params.SleepPerInsert)
 		i += 1
 	}
 	conn.FlushNow()
+
+	if params.Wipe == WipeAfter || params.Wipe == WipeBeforeAndAfter {
+		Wipe(conn, tb)
+	}
 }

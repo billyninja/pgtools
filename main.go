@@ -13,7 +13,9 @@ var FlagDBHost = flag.String("host", "localhost", "Database host address")
 var FlagDBUser = flag.String("user", "postgres", "Database user")
 var FlagDBPass = flag.String("pass", "postgres", "Database user password")
 var FlagDBPort = flag.String("port", "5432", "Database port")
-var FlagSimSleep = flag.Int("sleep", 100, "Sleep timeout")
+var FlagSimIPS = flag.Int("Ips", 100, "Inserts Per Second")
+var FlagSimRPS = flag.Int("Rps", 100, "Reads Per Second")
+var FlagSimCount = flag.Int("total", 10000, "Rows to be inserted during the battery")
 
 func main() {
 	flag.Parse()
@@ -28,10 +30,13 @@ func main() {
 	allTables := scanner.GetAllTables(conn)
 
 	sim_params := &filler.SimulationParams{
-		Wipe:           filler.WipeBefore,
-		Count:		    2000,
-		CountMode:      filler.FillIncrement,
-		SleepPerInsert: time.Millisecond * time.Duration(*FlagSimSleep),
+		Wipe:           	filler.WipeBefore,
+		Count:		    	2000,
+		CountMode:      	filler.FillIncrement,
+		InsertsPerSecond: 	*FlagSimIPS,
+		ReadsPerSecond: 	*FlagSimRPS,
+		SleepPerRead: 		time.Second/time.Duration(*FlagSimRPS),
+		SleepPerInsert: 	time.Second/time.Duration(*FlagSimIPS),
 	}
 
 	filler.Fill(conn, allTables[0], sim_params)
