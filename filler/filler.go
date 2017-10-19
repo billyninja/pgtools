@@ -10,6 +10,20 @@ import (
 	"time"
 )
 
+
+type WipeMode uint8
+type CountMode uint8
+
+const (
+	WipeNever 			WipeMode = iota
+	WipeBefore
+	WipeAfter
+	WipeBeforeAndAfter
+
+	FillIncrement		CountMode = iota
+	FillUntil
+)
+
 func rndColumn(cl *scanner.Column) string {
 	switch cl.Type {
 	case "numeric":
@@ -59,16 +73,41 @@ func BaseInsertQuery(tb *scanner.Table, skip_nullable uint8) string {
 	return base
 }
 
-func Fill(conn *connector.Connector, tb *scanner.Table, nrows int64) {
+
+type SimulationParams struct {
+	Wipe 			WipeMode
+	Count 			int64
+	CountMode   	CountMode
+	SleepPerInsert	time.Duration
+}
+
+
+type FillReport struct {
+	StartTime 		time.Time
+	EndTime 		time.Time
+	TotalWrites		uint64
+    TotalReads		uint64
+}
+
+
+func Fill(conn *connector.Connector, tb *scanner.Table, params *SimulationParams) {
 	rand.Seed(time.Now().UnixNano())
+
+	sql_wipe := fmt.Sprintf(`DELETE FROM "%s";`, tb.Name)
+	sql_count := fmt.Sprintf(`SELECT COUNT(*) FROM "%s";`, tb.Name)
+
+	println(sql_wipe)
+	println("====")
+	println(sql_count)
+
 	i := int64(0)
-	for i < nrows {
+	for i < params.Count {
 		_, _, err := conn.Insert(BaseInsertQuery(tb, 0))
 		if err != nil {
 			log.Printf("\n\n\n\n%v\n\n\n\n", err)
 			return
 		}
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(params.SleepPerInsert)
 		i += 1
 	}
 	conn.FlushNow()

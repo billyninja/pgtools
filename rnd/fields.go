@@ -51,7 +51,7 @@ func r_datetime(relative int8) time.Time {
 		return time.Now()
 	}
 
-	mod := rand.Intn(1024)
+	mod := rand.Intn(10240)
 	if relative > 0 {
 		return time.Now().Add(time.Duration(mod) * time.Minute)
 	}
