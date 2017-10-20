@@ -1,4 +1,4 @@
-package filler
+package bench
 
 import (
 	"fmt"
@@ -10,43 +10,6 @@ import (
 	"time"
 )
 
-type WipeMode uint8
-type CountMode uint8
-type ReaderFunc uint8
-
-const (
-	WipeNever WipeMode = iota
-	WipeBefore
-	WipeAfter
-	WipeBeforeAndAfter
-
-	FillIncrement CountMode = iota
-	FillUntil
-
-	ReaderGlobalCount ReaderFunc = iota
-	ReaderUnitrySelect
-	ReaderBigSelect
-	ReaderBigAgg
-)
-
-type SimulationParams struct {
-	Table            	scanner.TableName
-	Wipe             	WipeMode
-	Count            	uint
-	CountMode        	CountMode
-	ReadFunc 		 	ReaderFunc
-	InsertsPerSecond 	uint
-	ReadsPerSecond   	uint
-	SleepPerInsert   	time.Duration
-	SleepPerRead     	time.Duration
-}
-
-type FillReport struct {
-	StartTime   time.Time
-	EndTime     time.Time
-	TotalWrites uint64
-	TotalReads  uint64
-}
 
 func rndColumn(cl *scanner.Column) string {
 	switch cl.Type {
@@ -103,9 +66,7 @@ type Count struct {
 
 func Read(conn *connector.Connector, tb *scanner.Table) {
 	sql_count := fmt.Sprintf(`SELECT COUNT(*) as cnt FROM "%s";`, tb.Name)
-	t1 := time.Now()
 	rows, err := conn.Sel(sql_count)
-	latency := time.Since(t1)
 
 	if err != nil {
 		log.Panic("Error at COUNT: %+v", err)
@@ -117,7 +78,6 @@ func Read(conn *connector.Connector, tb *scanner.Table) {
 		if err != nil {
 			log.Panic("err parsing table struct:\n %v", err)
 		}
-		log.Printf("Count >> %d %v", curr_cnt.Cnt, latency)
 	}
 }
 
@@ -130,29 +90,56 @@ func Wipe(conn *connector.Connector, tb *scanner.Table) {
 	conn.FlushNow()
 }
 
-func WriteEngine(conn *connector.Connector, tb *scanner.Table, params *SimulationParams) {
-	i := uint(0)
-	for i < params.Count {
+func WriteEngine(conn *connector.Connector, tb *scanner.Table, params *SimParams, report *SimReport) {
+	report.writeCount = 0
+	for report.writeCount < params.Count {
+
+		t1 := time.Now()
 		_, _, err := conn.Insert(BaseInsertQuery(tb, 0))
 		if err != nil {
 			log.Panic("\n\n%v\n\n", err)
 		}
-		time.Sleep(params.SleepPerInsert)
-		i += 1
+		report.writeCount += 1
+		lat := time.Since(t1)
+
+		if report.writeCount%10 == 0 {
+			report.InsertSamples = append(report.InsertSamples, &Sample{
+				Latency: lat,
+				WriteCount: report.writeCount,
+				ReadCount: report.readCount,
+			})
+		}
+
+		time.Sleep(params.SleepPerInsert - lat)
 	}
 	conn.FlushNow()
+	report.Finish()
 }
 
-func ReadEngine(conn *connector.Connector, tb *scanner.Table, sleep time.Duration) {
+func ReadEngine(conn *connector.Connector, tb *scanner.Table, sleep time.Duration, report *SimReport) {
+	report.readCount = 0
 	go func() {
 		for {
+
+			t1 := time.Now()
 			Read(conn, tb)
-			time.Sleep(sleep)
+			report.readCount += 1
+			lat := time.Since(t1)
+
+			if report.readCount%10 == 0 {
+				report.ReadSamples = append(report.ReadSamples, &Sample{
+					Latency: lat,
+					WriteCount: report.writeCount,
+					ReadCount: report.readCount,
+				})
+			}
+
+			time.Sleep(sleep - lat)
 		}
 	}()
 }
 
-func Fill(conn *connector.Connector, tb *scanner.Table, params *SimulationParams) {
+func Fill(conn *connector.Connector, tb *scanner.Table, params *SimParams, report *SimReport) {
 	rand.Seed(time.Now().UnixNano())
 	Read(conn, tb)
 
@@ -161,11 +148,11 @@ func Fill(conn *connector.Connector, tb *scanner.Table, params *SimulationParams
 	}
 
 	if params.ReadsPerSecond > 0 {
-		ReadEngine(conn, tb, params.SleepPerRead)
+		ReadEngine(conn, tb, params.SleepPerRead, report)
 	}
 
 	if params.InsertsPerSecond > 0 {
-		WriteEngine(conn, tb, params)
+		WriteEngine(conn, tb, params, report)
 	}
 
 	if params.Wipe == WipeAfter || params.Wipe == WipeBeforeAndAfter {

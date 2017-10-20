@@ -19,8 +19,8 @@ type Column struct {
 }
 
 type Table struct {
-	Name      TableName `db:"table_name"`
-	TableType string `db:"table_type"`
+	Name      TableName 	`db:"table_name"`
+	TableType string 		`db:"table_type"`
 	Columns   []*Column
 }
 
