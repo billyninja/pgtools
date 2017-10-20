@@ -10,39 +10,43 @@ import (
 	"time"
 )
 
-
 type WipeMode uint8
 type CountMode uint8
+type ReaderFunc uint8
 
 const (
-	WipeNever 			WipeMode = iota
+	WipeNever WipeMode = iota
 	WipeBefore
 	WipeAfter
 	WipeBeforeAndAfter
 
-	FillIncrement		CountMode = iota
+	FillIncrement CountMode = iota
 	FillUntil
+
+	ReaderGlobalCount ReaderFunc = iota
+	ReaderUnitrySelect
+	ReaderBigSelect
+	ReaderBigAgg
 )
 
-
 type SimulationParams struct {
-	Wipe 				WipeMode
-	Count 				int64
-	CountMode   		CountMode
-	InsertsPerSecond	int
-	ReadsPerSecond		int
-	SleepPerInsert		time.Duration
-	SleepPerRead 		time.Duration
+	Table            	scanner.TableName
+	Wipe             	WipeMode
+	Count            	int
+	CountMode        	CountMode
+	ReadFunc 		 	ReaderFunc
+	InsertsPerSecond 	int
+	ReadsPerSecond   	int
+	SleepPerInsert   	time.Duration
+	SleepPerRead     	time.Duration
 }
-
 
 type FillReport struct {
-	StartTime 		time.Time
-	EndTime 		time.Time
-	TotalWrites		uint64
-    TotalReads		uint64
+	StartTime   time.Time
+	EndTime     time.Time
+	TotalWrites uint64
+	TotalReads  uint64
 }
-
 
 func rndColumn(cl *scanner.Column) string {
 	switch cl.Type {
@@ -78,7 +82,7 @@ func BaseInsertQuery(tb *scanner.Table, skip_nullable uint8) string {
 		if skip_nullable > 0 && cl.Nullable == "YES" {
 			continue
 		}
-		base += cl.Name
+		base += string(cl.Name)
 		base += ", "
 		values += rndColumn(cl)
 		values += ", "
@@ -92,7 +96,6 @@ func BaseInsertQuery(tb *scanner.Table, skip_nullable uint8) string {
 
 	return base
 }
-
 
 type Count struct {
 	Cnt int `db:"cnt"`
@@ -127,15 +130,27 @@ func Wipe(conn *connector.Connector, tb *scanner.Table) {
 	conn.FlushNow()
 }
 
+func WriteEngine(conn *connector.Connector, tb *scanner.Table, params *SimulationParams) {
+	i := int(0)
+	for i < params.Count {
+		_, _, err := conn.Insert(BaseInsertQuery(tb, 0))
+		if err != nil {
+			log.Panic("\n\n%v\n\n", err)
+		}
+		time.Sleep(params.SleepPerInsert)
+		i += 1
+	}
+	conn.FlushNow()
+}
+
 func ReadEngine(conn *connector.Connector, tb *scanner.Table, sleep time.Duration) {
-	go func(){
+	go func() {
 		for {
 			Read(conn, tb)
 			time.Sleep(sleep)
 		}
 	}()
 }
-
 
 func Fill(conn *connector.Connector, tb *scanner.Table, params *SimulationParams) {
 	rand.Seed(time.Now().UnixNano())
@@ -145,18 +160,13 @@ func Fill(conn *connector.Connector, tb *scanner.Table, params *SimulationParams
 		Wipe(conn, tb)
 	}
 
-	ReadEngine(conn, tb, params.SleepPerRead)
-
-	i := int64(0)
-	for i < params.Count {
-		_, _, err := conn.Insert(BaseInsertQuery(tb, 0))
-		if err != nil {
-			log.Panic("\n\n\n\n%v\n\n\n\n", err)
-		}
-		time.Sleep(params.SleepPerInsert)
-		i += 1
+	if params.ReadsPerSecond > 0 {
+		ReadEngine(conn, tb, params.SleepPerRead)
 	}
-	conn.FlushNow()
+
+	if params.InsertsPerSecond > 0 {
+		WriteEngine(conn, tb, params)
+	}
 
 	if params.Wipe == WipeAfter || params.Wipe == WipeBeforeAndAfter {
 		Wipe(conn, tb)

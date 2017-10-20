@@ -1,9 +1,9 @@
 package rnd
 
 import (
-    "fmt"
+	"fmt"
+	"math/rand"
 	"time"
-    "math/rand"
 )
 
 const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -23,11 +23,11 @@ func r_char() byte {
 
 // varying char
 func r_var_char(min, max int) string {
-    if (max - min) == 0 {
-	   return RandString(max)
-    }
-    s := min + rand.Intn(max - min)
-    return RandString(s)
+	if (max - min) == 0 {
+		return RandString(max)
+	}
+	s := min + rand.Intn(max-min)
+	return RandString(s)
 }
 
 // text
@@ -76,7 +76,7 @@ func PSQL_char() string {
 }
 func PSQL_var_char(min, max int) string {
 	r := r_var_char(min, max)
-    return fmt.Sprintf("'%s'", r)
+	return fmt.Sprintf("'%s'", r)
 }
 
 func PSQL_text() string {
@@ -135,7 +135,7 @@ func PSQL_byte_array(min, max int) string {
 }
 
 func PSQL_bool() string {
-	if (rand.Intn(1000)%2) > 0 {
+	if (rand.Intn(1000) % 2) > 0 {
 		return "true"
 	}
 	return "false"

@@ -6,8 +6,12 @@ import (
 	"log"
 )
 
+
+type TableName string
+type ColumnName string
+
 type Column struct {
-	Name          string  `db:"column_name"`
+	Name          ColumnName  `db:"column_name"`
 	CharMaxLength *uint16 `db:"character_maximum_length"`
 	Type          string  `db:"data_type"`
 	Default       *string `db:"column_default"`
@@ -15,7 +19,7 @@ type Column struct {
 }
 
 type Table struct {
-	Name      string `db:"table_name"`
+	Name      TableName `db:"table_name"`
 	TableType string `db:"table_type"`
 	Columns   []*Column
 }
