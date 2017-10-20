@@ -32,11 +32,11 @@ const (
 type SimulationParams struct {
 	Table            	scanner.TableName
 	Wipe             	WipeMode
-	Count            	int
+	Count            	uint
 	CountMode        	CountMode
 	ReadFunc 		 	ReaderFunc
-	InsertsPerSecond 	int
-	ReadsPerSecond   	int
+	InsertsPerSecond 	uint
+	ReadsPerSecond   	uint
 	SleepPerInsert   	time.Duration
 	SleepPerRead     	time.Duration
 }
@@ -131,7 +131,7 @@ func Wipe(conn *connector.Connector, tb *scanner.Table) {
 }
 
 func WriteEngine(conn *connector.Connector, tb *scanner.Table, params *SimulationParams) {
-	i := int(0)
+	i := uint(0)
 	for i < params.Count {
 		_, _, err := conn.Insert(BaseInsertQuery(tb, 0))
 		if err != nil {
