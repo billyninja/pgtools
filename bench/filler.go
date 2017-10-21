@@ -87,7 +87,7 @@ func Wipe(conn *connector.Connector, tb *scanner.Table) {
 	if err != nil {
 		log.Panic("Error at WIPE: %+v", err)
 	}
-	conn.FlushNow()
+	conn.FlushNow(false)
 }
 
 func WriteEngine(conn *connector.Connector, tb *scanner.Table, params *SimParams, report *SimReport) {
@@ -95,7 +95,7 @@ func WriteEngine(conn *connector.Connector, tb *scanner.Table, params *SimParams
 	for report.writeCount < params.Count {
 
 		t1 := time.Now()
-		_, _, err := conn.Insert(BaseInsertQuery(tb, 0))
+		_, flushed, err := conn.Insert(BaseInsertQuery(tb, 0))
 		if err != nil {
 			log.Panic("\n\n%v\n\n", err)
 		}
@@ -103,16 +103,21 @@ func WriteEngine(conn *connector.Connector, tb *scanner.Table, params *SimParams
 		lat := time.Since(t1)
 
 		if report.writeCount%10 == 0 {
-			report.InsertSamples = append(report.InsertSamples, &Sample{
+			smp := &Sample{
 				Latency: lat,
 				WriteCount: report.writeCount,
 				ReadCount: report.readCount,
-			})
+			}
+			if flushed {
+				report.FlushSamples = append(report.FlushSamples, smp)
+			} else {
+				report.InsertSamples = append(report.InsertSamples, smp)
+			}
 		}
 
 		time.Sleep(params.SleepPerInsert - lat)
 	}
-	conn.FlushNow()
+	conn.FlushNow(false)
 	report.Finish()
 }
 

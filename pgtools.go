@@ -1,7 +1,6 @@
 package main
 
 import (
-	"os"
 	"log"
 	"flag"
 	"time"
@@ -44,16 +43,17 @@ func main() {
 		ips = time.Second / time.Duration(*FlagSimIPS)
 	}
 
-	sim_params := &bench.SimulationParams{
+	sim_params := &bench.SimParams{
 		Table:		      scanner.TableName(*FlagSimTable),
 		Wipe:             bench.WipeBefore,
-		Count:            *FlagSimCount,
+		Count:            uint(*FlagSimCount),
 		CountMode:        bench.FillIncrement,
 		ReadFunc:         bench.ReaderGlobalCount,
-		InsertsPerSecond: *FlagSimIPS,
-		ReadsPerSecond:   *FlagSimRPS,
+		InsertsPerSecond: uint(*FlagSimIPS),
+		ReadsPerSecond:   uint(*FlagSimRPS),
 		SleepPerRead:     rps,
 		SleepPerInsert:   ips,
 	}
-	os.Exit(bench.Sim(conn, sim_params))
+
+	bench.Sim(conn, sim_params)
 }

@@ -3,6 +3,7 @@ package bench
 import (
     "fmt"
     "github.com/billyninja/pgtools/connector"
+    "github.com/billyninja/pgtools/colors"
     "time"
 )
 
@@ -26,7 +27,7 @@ type SimReport struct {
     writeCount        uint
 
     InsertSamples     []*Sample
-    FlushSample       []*Sample
+    FlushSamples       []*Sample
     ReadSamples       []*Sample
 }
 
@@ -78,29 +79,29 @@ func AnalyticPrint(samples []*Sample, agg *Agg) string {
         if smp.Latency >= agg.AvgLatency {
 
             if smp.Latency >= agg.MaxLatency {
-               out += "\x1b[31;1m x" + smp.Latency.String()
+               out += colors.Red("x")
             } else {
-               out += "\x1b[31;1m -"
+               out += colors.Yellow("-")
             }
-
-            //out += "\x1b[30;1m-"
             continue
         }
 
         if smp.Latency < agg.AvgLatency {
 
             if smp.Latency <= agg.MinLatency {
-               out += "\x1b[32;1m o"+ smp.Latency.String()
+               out += colors.Green("o")
             } else {
-               out += "\x1b[32;1m +"
+               out += colors.Blue("+")
             }
-
-            //out +=  "\x1b[0m-"
             continue
         }
     }
 
-    out +=  "\x1b[0m"
+    out += "\nCaption:"
+    out += "\n" + colors.Green("o") +  " - lowest latency      - " + colors.Green(agg.MinLatency.String())
+    out += "\n" + colors.Blue("+") +  " - bellow avg. latency - " + colors.Blue("< " + agg.AvgLatency.String())
+    out += "\n" + colors.Yellow("-") + " - above avg. latency  - " + colors.Yellow("> " + agg.AvgLatency.String())
+    out += "\n" + colors.Red("x") +    " - highest latency     - " + colors.Red(agg.MaxLatency.String())
     return out
 }
 
@@ -119,14 +120,18 @@ func (r SimReport) String() string {
             r.FinishedAt.Format(REPORT_FMT), since)
     }
 
+    ips := float64(r.writeCount)/since.Seconds()
+    out += fmt.Sprintf("\nAt: %.2f inserts/s on avarage", ips)
     out += fmt.Sprintf("\n\n== Used simulation params: \n\t%s", r.SimulationParams)
-    out += fmt.Sprintf("\n\nSample analysis:\n\n")
 
     insert_analysis := AggAnalysis(r.InsertSamples)
+    flush_analysis := AggAnalysis(r.FlushSamples)
     read_analysis := AggAnalysis(r.ReadSamples)
 
     out += fmt.Sprintf("\n\nSample analysis:\n\nWrite:\n")
     out += AnalyticPrint(r.InsertSamples, insert_analysis)
+    out += "\n\n" + colors.Bold("Flush") + ":\n"
+    out += AnalyticPrint(r.FlushSamples, flush_analysis)
     out += "\n\nRead:\n"
     out += AnalyticPrint(r.ReadSamples, read_analysis)
     out += "\n\n"

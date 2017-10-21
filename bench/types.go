@@ -4,6 +4,7 @@ import (
     "fmt"
     "time"
     "github.com/billyninja/pgtools/scanner"
+    "github.com/billyninja/pgtools/colors"
 )
 
 type SimStatus uint8
@@ -106,18 +107,27 @@ func (rf ReaderFunc) String() string {
 
 func (sp SimParams) String() string {
     base := `
-    . SelectedTable:        %s
-    . Wipe Mode:            %s
-    . Insert Count:         %d (%s)
-    . Inserts Per Second:   %d (%s sleep)
-    . Reads Per Second: %d (%s sleep, %s)
-
+    %s:        %s
+    %s:            %s
+    %s:         %s (%s)
+    %s:   %s (%s sleep)
+    %s:     %s (%s sleep, %s)
     `
     return fmt.Sprintf(
         base,
-        sp.Table, sp.Wipe, sp.Count, sp.CountMode,
-        sp.InsertsPerSecond, sp.SleepPerInsert,
-        sp.ReadsPerSecond, sp.SleepPerRead,
+        colors.Yellow("SelectedTable"),
+        colors.Bold(sp.Table),
+        colors.Yellow("Wipe Mode"),
+        colors.Bold(sp.Wipe),
+        colors.Yellow("Insert Count"),
+        colors.Bold(sp.Count),
+        sp.CountMode,
+        colors.Yellow("Inserts Per Second"),
+        colors.Bold(sp.InsertsPerSecond),
+        sp.SleepPerInsert,
+        colors.Yellow("Reads Per Second"),
+        colors.Bold(sp.ReadsPerSecond),
+        sp.SleepPerRead,
         sp.ReadFunc)
 }
 

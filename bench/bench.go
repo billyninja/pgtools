@@ -37,9 +37,7 @@ func SimpleRW(conn *connector.Connector, table string, count, rps, wps uint) {
 
 func Sim(conn *connector.Connector, params *SimParams) *SimReport {
     var selectedTable *scanner.Table
-
     allTables := scanner.GetAllTables(conn)
-
     for _, at := range allTables {
         if at.Name == params.Table {
             selectedTable = at

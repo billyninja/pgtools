@@ -2,6 +2,7 @@ package connector
 
 import (
 	"fmt"
+	"github.com/billyninja/pgtools/colors"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"log"
@@ -24,7 +25,7 @@ type Connector struct {
 func (cn *Connector) CheckFlushTimeout() {
 	for {
 		if (cn.WriteCfg.FlushTimeout > 0*time.Second && time.Since(cn.LastFlush) >= cn.WriteCfg.FlushTimeout) && len(cn.WriteAcc) > 0 {
-			err := cn.FlushNow()
+			err := cn.FlushNow(true)
 			if err != nil {
 				println("<ERRD AT TIMEOUT ENGINE>")
 				continue
@@ -76,14 +77,14 @@ func (conn *Connector) Insert(q string) (bool, bool, error) {
 	conn.WriteAcc = append(conn.WriteAcc, q)
 	var err error
 	if conn.WriteCfg.AccLimit > 0 && pos >= conn.WriteCfg.AccLimit {
-		err = conn.FlushNow()
+		err = conn.FlushNow(false)
 		persisted = true
 	}
 
 	return true, persisted, err
 }
 
-func (conn *Connector) FlushNow() error {
+func (conn *Connector) FlushNow(timeout bool) error {
 	tq := strings.Join(conn.WriteAcc, "; ")
 	t1 := time.Now()
 	_, err := conn.DB.Exec(tq)
@@ -92,7 +93,17 @@ func (conn *Connector) FlushNow() error {
 		log.Println(tq)
 		return err
 	}
-	log.Printf("<PERSISTED! %d - s: %d l: %s>\n", len(conn.WriteAcc), len(tq), lat)
+
+	trigger := "count"
+	if timeout {
+		trigger = "timeout"
+	}
+
+	log.Printf("<%s -%s- %d - s: %d l: %s>\n",
+		 colors.Green("FLUSHED!"),
+		 colors.Yellow(trigger),
+		 len(conn.WriteAcc),
+		 len(tq), lat)
 
 	conn.WriteAcc = []string{}
 	conn.LastFlush = time.Now()
