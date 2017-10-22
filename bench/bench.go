@@ -35,15 +35,19 @@ func SimpleRW(conn *connector.Connector, table string, count, rps, wps uint) {
     Sim(conn, params)
 }
 
+func getTableByName(allTables []*scanner.Table, name scanner.TableName) *scanner.Table {
+    for _, at := range allTables {
+        if at.Name == name {
+            return at
+        }
+    }
+    return nil
+}
+
 func Sim(conn *connector.Connector, params *SimParams) *SimReport {
     var selectedTable *scanner.Table
     allTables := scanner.GetAllTables(conn)
-    for _, at := range allTables {
-        if at.Name == params.Table {
-            selectedTable = at
-        }
-    }
-
+    selectedTable = getTableByName(allTables, params.Table)
     if selectedTable == nil {
         log.Printf("Table specified %s not found! \n\n", params.Table)
         return nil
@@ -59,8 +63,28 @@ func Sim(conn *connector.Connector, params *SimParams) *SimReport {
         Eta:                time.Now().Add(expected_duration),
     }
 
+    fillFKConstrains(conn, selectedTable, allTables)
+
     Fill(conn, selectedTable, params, report)
     fmt.Printf("%s", report)
 
     return report
 }
+
+func fillFKConstrains(conn *connector.Connector, tb *scanner.Table, tbs []*scanner.Table) {
+    println("Solving fkdep for: ", tb.Name)
+    for _, ct := range tb.Constraints {
+        if ct.FTable != nil {
+            fktable := getTableByName(tbs, *ct.FTable)
+            println("FK found! Should fill ", *ct.FTable, fktable)
+            fillFKConstrains(conn, fktable, tbs)
+            for i := 0; i < 100; i++ {
+                conn.Insert(BaseInsertQuery(fktable, 0))
+            }
+
+        }
+    }
+    println("here")
+}
+
+

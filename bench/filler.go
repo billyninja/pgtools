@@ -45,7 +45,7 @@ func BaseInsertQuery(tb *scanner.Table, skip_nullable uint8) string {
 		if skip_nullable > 0 && cl.Nullable == "YES" {
 			continue
 		}
-		base += string(cl.Name)
+		base += `"` + string(cl.Name) + `"`
 		base += ", "
 		values += rndColumn(cl)
 		values += ", "
@@ -90,10 +90,10 @@ func Wipe(conn *connector.Connector, tb *scanner.Table) {
 	conn.FlushNow(false)
 }
 
-func WriteEngine(conn *connector.Connector, tb *scanner.Table, params *SimParams, report *SimReport) {
+func writeEngine(conn *connector.Connector, tb *scanner.Table, params *SimParams, report *SimReport) {
+
 	report.writeCount = 0
 	for report.writeCount < params.Count {
-
 		t1 := time.Now()
 		_, flushed, err := conn.Insert(BaseInsertQuery(tb, 0))
 		if err != nil {
@@ -121,7 +121,7 @@ func WriteEngine(conn *connector.Connector, tb *scanner.Table, params *SimParams
 	report.Finish()
 }
 
-func ReadEngine(conn *connector.Connector, tb *scanner.Table, sleep time.Duration, report *SimReport) {
+func readEngine(conn *connector.Connector, tb *scanner.Table, sleep time.Duration, report *SimReport) {
 	report.readCount = 0
 	go func() {
 		for {
@@ -146,18 +146,17 @@ func ReadEngine(conn *connector.Connector, tb *scanner.Table, sleep time.Duratio
 
 func Fill(conn *connector.Connector, tb *scanner.Table, params *SimParams, report *SimReport) {
 	rand.Seed(time.Now().UnixNano())
-	Read(conn, tb)
 
 	if params.Wipe == WipeBefore || params.Wipe == WipeBeforeAndAfter {
 		Wipe(conn, tb)
 	}
 
 	if params.ReadsPerSecond > 0 {
-		ReadEngine(conn, tb, params.SleepPerRead, report)
+		readEngine(conn, tb, params.SleepPerRead, report)
 	}
 
 	if params.InsertsPerSecond > 0 {
-		WriteEngine(conn, tb, params, report)
+		writeEngine(conn, tb, params, report)
 	}
 
 	if params.Wipe == WipeAfter || params.Wipe == WipeBeforeAndAfter {
