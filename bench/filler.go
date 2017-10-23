@@ -64,7 +64,7 @@ type Count struct {
 	Cnt int `db:"cnt"`
 }
 
-func Read(conn *connector.Connector, tb *scanner.Table) {
+func Read(conn *connector.Connector, tb *scanner.Table) (int, error) {
 	sql_count := fmt.Sprintf(`SELECT COUNT(*) as cnt FROM "%s";`, tb.Name)
 	rows, err := conn.Sel(sql_count)
 
@@ -72,18 +72,20 @@ func Read(conn *connector.Connector, tb *scanner.Table) {
 		log.Panic("Error at COUNT: %+v", err)
 	}
 
+	curr_cnt := &Count{}
 	for rows.Next() {
-		curr_cnt := &Count{}
 		err := rows.StructScan(curr_cnt)
 		if err != nil {
 			log.Panic("err parsing table struct:\n %v", err)
 		}
 	}
+
+	return curr_cnt.Cnt, err
 }
 
 func Wipe(conn *connector.Connector, tb *scanner.Table) {
 	sql_wipe := fmt.Sprintf(`DELETE FROM "%s";`, tb.Name)
-	_, _, err := conn.Insert(sql_wipe)
+	_, _, err := conn.Insert(sql_wipe, true)
 	if err != nil {
 		log.Panic("Error at WIPE: %+v", err)
 	}
@@ -95,7 +97,7 @@ func writeEngine(conn *connector.Connector, tb *scanner.Table, params *SimParams
 	report.writeCount = 0
 	for report.writeCount < params.Count {
 		t1 := time.Now()
-		_, flushed, err := conn.Insert(BaseInsertQuery(tb, 0))
+		_, flushed, err := conn.Insert(BaseInsertQuery(tb, 0), false)
 		if err != nil {
 			log.Panic("\n\n%v\n\n", err)
 		}

@@ -71,12 +71,13 @@ func (conn *Connector) Sel(q string) (*sqlx.Rows, error) {
 	return rows, err
 }
 
-func (conn *Connector) Insert(q string) (bool, bool, error) {
+func (conn *Connector) Insert(q string, flushnow bool) (bool, bool, error) {
 	persisted := false
 	pos := len(conn.WriteAcc) + 1
 	conn.WriteAcc = append(conn.WriteAcc, q)
 	var err error
-	if conn.WriteCfg.AccLimit > 0 && pos >= conn.WriteCfg.AccLimit {
+	if flushnow ||
+	   (conn.WriteCfg.AccLimit > 0 && pos >= conn.WriteCfg.AccLimit) {
 		err = conn.FlushNow(false)
 		persisted = true
 	}

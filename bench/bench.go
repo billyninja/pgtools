@@ -76,15 +76,19 @@ func fillFKConstrains(conn *connector.Connector, tb *scanner.Table, tbs []*scann
     for _, ct := range tb.Constraints {
         if ct.FTable != nil {
             fktable := getTableByName(tbs, *ct.FTable)
-            println("FK found! Should fill ", *ct.FTable, fktable)
             fillFKConstrains(conn, fktable, tbs)
-            for i := 0; i < 100; i++ {
-                conn.Insert(BaseInsertQuery(fktable, 0))
+            fk_count, err := Read(conn, fktable)
+            if err != nil {
+                return
             }
 
+            if fk_count < 100 {
+                for i := 0; i < (100 - fk_count); i++ {
+                    conn.Insert(BaseInsertQuery(fktable, 0), true)
+                }
+            }
         }
     }
-    println("here")
 }
 
 
