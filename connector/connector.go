@@ -1,6 +1,7 @@
 package connector
 
 import (
+	"database/sql"
 	"fmt"
 	"github.com/billyninja/pgtools/colors"
 	"github.com/jmoiron/sqlx"
@@ -27,12 +28,12 @@ func (cn *Connector) CheckFlushTimeout() {
 		if (cn.WriteCfg.FlushTimeout > 0*time.Second && time.Since(cn.LastFlush) >= cn.WriteCfg.FlushTimeout) && len(cn.WriteAcc) > 0 {
 			err := cn.FlushNow(true)
 			if err != nil {
-				println("<ERRD AT TIMEOUT ENGINE>")
+				log.Printf("<ERRD AT TIMEOUT ENGINE>\n\n%v\n", err)
 				continue
 			}
 		}
 
-		time.Sleep(1 * time.Second)
+		time.Sleep(3 * time.Second)
 	}
 }
 
@@ -47,7 +48,7 @@ func NewConnector(host, port, user, pass, db string) (*Connector, error) {
 	)
 	dbc := sqlx.MustOpen("postgres", strConn)
 
-	wcfg := &WriteCfg{100, 3 * time.Second}
+	wcfg := &WriteCfg{500, 1 * time.Second}
 	cn := &Connector{
 		WriteCfg: wcfg,
 		WriteAcc: []string{},
@@ -77,12 +78,30 @@ func (conn *Connector) Insert(q string, flushnow bool) (bool, bool, error) {
 	conn.WriteAcc = append(conn.WriteAcc, q)
 	var err error
 	if flushnow ||
-	   (conn.WriteCfg.AccLimit > 0 && pos >= conn.WriteCfg.AccLimit) {
+		(conn.WriteCfg.AccLimit > 0 && pos >= conn.WriteCfg.AccLimit) {
+
+		if flushnow {
+			println("flushnow!")
+			println(q)
+		}
+
 		err = conn.FlushNow(false)
-		persisted = true
+		if err == nil {
+			persisted = true
+		}
 	}
 
 	return true, persisted, err
+}
+
+func (conn *Connector) DirectInsert(query string) (*sql.Rows, error) {
+	rows, err := conn.DB.Query(query)
+	if err != nil {
+		log.Printf("ERROR: \n\n\n %s \n\n\n", query)
+		return nil, err
+	}
+
+	return rows, err
 }
 
 func (conn *Connector) FlushNow(timeout bool) error {
@@ -91,7 +110,7 @@ func (conn *Connector) FlushNow(timeout bool) error {
 	_, err := conn.DB.Exec(tq)
 	lat := time.Since(t1)
 	if err != nil {
-		log.Println(tq)
+		log.Printf("ERROR: \n\n\n %s \n\n\n", tq)
 		return err
 	}
 
@@ -101,10 +120,10 @@ func (conn *Connector) FlushNow(timeout bool) error {
 	}
 
 	log.Printf("<%s -%s- %d - s: %d l: %s>\n",
-		 colors.Green("FLUSHED!"),
-		 colors.Yellow(trigger),
-		 len(conn.WriteAcc),
-		 len(tq), lat)
+		colors.Green("FLUSHED!"),
+		colors.Yellow(trigger),
+		len(conn.WriteAcc),
+		len(tq), lat)
 
 	conn.WriteAcc = []string{}
 	conn.LastFlush = time.Now()

@@ -1,12 +1,12 @@
 package main
 
 import (
-	"log"
 	"flag"
-	"time"
+	"github.com/billyninja/pgtools/bench"
 	"github.com/billyninja/pgtools/connector"
 	"github.com/billyninja/pgtools/scanner"
-	"github.com/billyninja/pgtools/bench"
+	"log"
+	"time"
 )
 
 var FlagDBName = flag.String("db", "", "Database to connect to")
@@ -44,7 +44,7 @@ func main() {
 	}
 
 	sim_params := &bench.SimParams{
-		Table:		      scanner.TableName(*FlagSimTable),
+		Table:            scanner.TableName(*FlagSimTable),
 		Wipe:             bench.WipeBefore,
 		Count:            uint(*FlagSimCount),
 		CountMode:        bench.FillIncrement,
