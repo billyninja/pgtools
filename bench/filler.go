@@ -195,8 +195,8 @@ func fillFKConstrains(conn *connector.Connector, tb *scanner.Table, tbs []*scann
 				return
 			}
 
-			if fk_count < 100 {
-				for i := 0; i < (100 - fk_count); i++ {
+			if fk_count < 50 {
+				for i := 0; i < (50 - fk_count); i++ {
 					qry := BaseInsertQuery(fktable, 0)
 					rows, err := conn.DirectInsert(qry)
 					if err != nil {

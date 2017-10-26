@@ -17,15 +17,16 @@ type WriteCfg struct {
 }
 
 type Connector struct {
-	DB        *sqlx.DB
-	WriteCfg  *WriteCfg
-	WriteAcc  []string
-	LastFlush time.Time
+	DB        	*sqlx.DB
+	WriteCfg  	*WriteCfg
+	WriteAcc  	[]string
+	LastFlush 	time.Time
+	FlushLock 	bool
 }
 
 func (cn *Connector) CheckFlushTimeout() {
 	for {
-		if (cn.WriteCfg.FlushTimeout > 0*time.Second && time.Since(cn.LastFlush) >= cn.WriteCfg.FlushTimeout) && len(cn.WriteAcc) > 0 {
+		if !cn.FlushLock && (cn.WriteCfg.FlushTimeout > 0*time.Second && time.Since(cn.LastFlush) >= cn.WriteCfg.FlushTimeout) && len(cn.WriteAcc) > 0 {
 			err := cn.FlushNow(true)
 			if err != nil {
 				log.Printf("<ERRD AT TIMEOUT ENGINE>\n\n%v\n", err)
@@ -33,7 +34,7 @@ func (cn *Connector) CheckFlushTimeout() {
 			}
 		}
 
-		time.Sleep(3 * time.Second)
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 
@@ -48,7 +49,7 @@ func NewConnector(host, port, user, pass, db string) (*Connector, error) {
 	)
 	dbc := sqlx.MustOpen("postgres", strConn)
 
-	wcfg := &WriteCfg{500, 1 * time.Second}
+	wcfg := &WriteCfg{90, 100 * time.Millisecond}
 	cn := &Connector{
 		WriteCfg: wcfg,
 		WriteAcc: []string{},
@@ -77,8 +78,8 @@ func (conn *Connector) Insert(q string, flushnow bool) (bool, bool, error) {
 	pos := len(conn.WriteAcc) + 1
 	conn.WriteAcc = append(conn.WriteAcc, q)
 	var err error
-	if flushnow ||
-		(conn.WriteCfg.AccLimit > 0 && pos >= conn.WriteCfg.AccLimit) {
+	if (flushnow && !conn.FlushLock)||
+		(!conn.FlushLock && conn.WriteCfg.AccLimit > 0 && pos >= conn.WriteCfg.AccLimit) {
 
 		if flushnow {
 			println("flushnow!")
@@ -105,6 +106,16 @@ func (conn *Connector) DirectInsert(query string) (*sql.Rows, error) {
 }
 
 func (conn *Connector) FlushNow(timeout bool) error {
+	conn.FlushLock = true
+	defer func(){conn.FlushLock = false}()
+
+	trigger := "count"
+	if timeout {
+		trigger = "timeout"
+	}
+	log.Printf("<%s - %s>\n",
+		colors.Yellow("Entered FlushNow!"), colors.Yellow(trigger))
+
 	tq := strings.Join(conn.WriteAcc, "; ")
 	t1 := time.Now()
 	_, err := conn.DB.Exec(tq)
@@ -112,11 +123,6 @@ func (conn *Connector) FlushNow(timeout bool) error {
 	if err != nil {
 		log.Printf("ERROR: \n\n\n %s \n\n\n", tq)
 		return err
-	}
-
-	trigger := "count"
-	if timeout {
-		trigger = "timeout"
 	}
 
 	log.Printf("<%s -%s- %d - s: %d l: %s>\n",
@@ -127,6 +133,5 @@ func (conn *Connector) FlushNow(timeout bool) error {
 
 	conn.WriteAcc = []string{}
 	conn.LastFlush = time.Now()
-
 	return err
 }
