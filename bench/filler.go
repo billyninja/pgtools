@@ -44,7 +44,6 @@ func rndColumn(cl *scanner.Column) string {
 }
 
 func BaseInsertQuery(tb *scanner.Table, skip_nullable uint8) string {
-	rand.Seed(time.Now().UnixNano())
 
 	base := fmt.Sprintf(`INSERT INTO "%s" (`, tb.Name)
 	values := "VALUES ("
@@ -113,8 +112,8 @@ func writeEngine(conn *connector.Connector, tb *scanner.Table, params *SimParams
 			log.Panicf("\n\n%v\n\n", err)
 		}
 		report.writeCount += 1
-		lat := time.Since(t1)
 
+		lat := time.Since(t1)
 		if report.writeCount%10 == 0 {
 			smp := &Sample{
 				Latency:    lat,
@@ -127,8 +126,9 @@ func writeEngine(conn *connector.Connector, tb *scanner.Table, params *SimParams
 				report.InsertSamples = append(report.InsertSamples, smp)
 			}
 		}
-
-		time.Sleep(params.SleepPerInsert - lat)
+		slp := (params.SleepPerInsert - lat)/2
+		fmt.Printf("%s", slp)
+		time.Sleep(slp)
 	}
 	conn.FlushNow(false)
 	report.Finish()
@@ -172,6 +172,7 @@ func Fill(conn *connector.Connector, tb *scanner.Table, params *SimParams, repor
 		readEngine(conn, tb, params.SleepPerRead, report)
 	}
 
+	report.StartedAt = time.Now()
 	if params.InsertsPerSecond > 0 {
 		writeEngine(conn, tb, params, report)
 	}

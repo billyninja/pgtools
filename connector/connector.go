@@ -34,7 +34,7 @@ func (cn *Connector) CheckFlushTimeout() {
 			}
 		}
 
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(1 * time.Millisecond)
 	}
 }
 
@@ -49,7 +49,7 @@ func NewConnector(host, port, user, pass, db string) (*Connector, error) {
 	)
 	dbc := sqlx.MustOpen("postgres", strConn)
 
-	wcfg := &WriteCfg{90, 100 * time.Millisecond}
+	wcfg := &WriteCfg{128, 5000 * time.Millisecond}
 	cn := &Connector{
 		WriteCfg: wcfg,
 		WriteAcc: []string{},
@@ -108,30 +108,32 @@ func (conn *Connector) DirectInsert(query string) (*sql.Rows, error) {
 func (conn *Connector) FlushNow(timeout bool) error {
 	conn.FlushLock = true
 	defer func(){conn.FlushLock = false}()
-
 	trigger := "count"
 	if timeout {
 		trigger = "timeout"
 	}
-	log.Printf("<%s - %s>\n",
-		colors.Yellow("Entered FlushNow!"), colors.Yellow(trigger))
 
-	tq := strings.Join(conn.WriteAcc, "; ")
+	acc := make([]string, len(conn.WriteAcc))
+	copy(acc, conn.WriteAcc)
+	conn.WriteAcc = []string{}
+
+	tq := strings.Join(acc, "; ")
 	t1 := time.Now()
 	_, err := conn.DB.Exec(tq)
 	lat := time.Since(t1)
 	if err != nil {
 		log.Printf("ERROR: \n\n\n %s \n\n\n", tq)
+		conn.WriteAcc = append(conn.WriteAcc, acc...)
 		return err
 	}
+	if timeout {
+		log.Printf("<%s -%s- %d - s: %d l: %s>\n",
+			colors.Green("FLUSHED!"),
+			colors.Yellow(trigger),
+			len(acc),
+			len(tq), lat)
+	}
 
-	log.Printf("<%s -%s- %d - s: %d l: %s>\n",
-		colors.Green("FLUSHED!"),
-		colors.Yellow(trigger),
-		len(conn.WriteAcc),
-		len(tq), lat)
-
-	conn.WriteAcc = []string{}
 	conn.LastFlush = time.Now()
 	return err
 }

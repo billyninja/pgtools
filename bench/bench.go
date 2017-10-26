@@ -57,7 +57,6 @@ func Sim(conn *connector.Connector, params *SimParams) *SimReport {
 
 	report := &SimReport{
 		Status:           SimRunning,
-		StartedAt:        time.Now(),
 		SimulationParams: params,
 		UsedConnector:    conn,
 		Eta:              time.Now().Add(expected_duration),
