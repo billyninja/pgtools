@@ -35,12 +35,18 @@ func rndColumn(cl *scanner.Column) string {
 		return rnd.PSQL_bool()
 	case "json":
 		return "'{}'"
+	case "text":
+		return "'{}'"
 	default:
 		log.Panicf("\n\nRAND DATA-TYPE NOT IMPLEMENTED: %s\n\n", cl.Type)
 		break
 	}
 
 	return ""
+}
+
+func FetchAllQuery(tb *scanner.Table) string {
+	return fmt.Sprintf(`SELECT * FROM "%s";`, tb.Name)
 }
 
 func BaseInsertQuery(tb *scanner.Table, skip_nullable uint8) string {
@@ -70,7 +76,10 @@ func BaseInsertQuery(tb *scanner.Table, skip_nullable uint8) string {
 	base += values
 	base += ")"
 
-	base += fmt.Sprintf(` RETURNING %s`, tb.PkExp)
+	if len(tb.PkExp) > 0 {
+		base += fmt.Sprintf(` RETURNING %s`, tb.PkExp)
+	}
+
 	return base
 }
 
@@ -126,8 +135,7 @@ func writeEngine(conn *connector.Connector, tb *scanner.Table, params *SimParams
 				report.InsertSamples = append(report.InsertSamples, smp)
 			}
 		}
-		slp := (params.SleepPerInsert - lat)/2
-		fmt.Printf("%s", slp)
+		slp := (params.SleepPerInsert - lat) / 2
 		time.Sleep(slp)
 	}
 	conn.FlushNow(false)
@@ -192,12 +200,40 @@ func fillFKConstrains(conn *connector.Connector, tb *scanner.Table, tbs []*scann
 			fktable := getTableByName(tbs, *ct.FTable)
 			fillFKConstrains(conn, fktable, tbs)
 			fk_count, err := Count(conn, fktable)
+
 			if err != nil {
 				return
 			}
 
+			if fk_count > 0 {
+				key := *ct.FTable
+				RAWREL[key] = []sql.RawBytes{}
+				qry := FetchAllQuery(fktable)
+				rows, err := conn.Sel(qry)
+				if err != nil {
+					log.Panic("Errd at fillFKConstrains - FetchAllQuery QUERY ", err)
+				}
+
+				i := 0
+				for rows.Next() {
+					var raw sql.RawBytes
+					err = rows.Scan(&raw)
+					if err != nil {
+						log.Panic("Errd at fillFKConstrains - FetchAllQuery SCAN ", err)
+					}
+
+					RAWREL[key] = append(RAWREL[key], raw)
+					i += 1
+				}
+			}
+
 			if fk_count < 50 {
 				for i := 0; i < (50 - fk_count); i++ {
+
+					println("Xxxx", i, "-----", (50 - fk_count))
+					println("Xxxx", i, "-----", (50 - fk_count))
+					println("Xxxx", i, "-----", (50 - fk_count))
+
 					qry := BaseInsertQuery(fktable, 0)
 					rows, err := conn.DirectInsert(qry)
 					if err != nil {
@@ -205,6 +241,8 @@ func fillFKConstrains(conn *connector.Connector, tb *scanner.Table, tbs []*scann
 					}
 
 					for rows.Next() {
+
+						println("3*********")
 						var raw sql.RawBytes
 						err = rows.Scan(&raw)
 						if err != nil {

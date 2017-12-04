@@ -8,6 +8,7 @@ import (
 	_ "github.com/lib/pq"
 	"log"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -17,16 +18,17 @@ type WriteCfg struct {
 }
 
 type Connector struct {
-	DB        	*sqlx.DB
-	WriteCfg  	*WriteCfg
-	WriteAcc  	[]string
-	LastFlush 	time.Time
-	FlushLock 	bool
+	DB        *sqlx.DB
+	WriteCfg  *WriteCfg
+	WriteAcc  []string
+	LastFlush time.Time
+	FlushLock sync.Mutex
 }
 
 func (cn *Connector) CheckFlushTimeout() {
 	for {
-		if !cn.FlushLock && (cn.WriteCfg.FlushTimeout > 0*time.Second && time.Since(cn.LastFlush) >= cn.WriteCfg.FlushTimeout) && len(cn.WriteAcc) > 0 {
+		//if !cn.FlushLock && (cn.WriteCfg.FlushTimeout > 0*time.Second && time.Since(cn.LastFlush) >= cn.WriteCfg.FlushTimeout) && len(cn.WriteAcc) > 0 {
+		if (cn.WriteCfg.FlushTimeout > 0*time.Second && time.Since(cn.LastFlush) >= cn.WriteCfg.FlushTimeout) && len(cn.WriteAcc) > 0 {
 			err := cn.FlushNow(true)
 			if err != nil {
 				log.Printf("<ERRD AT TIMEOUT ENGINE>\n\n%v\n", err)
@@ -78,9 +80,7 @@ func (conn *Connector) Insert(q string, flushnow bool) (bool, bool, error) {
 	pos := len(conn.WriteAcc) + 1
 	conn.WriteAcc = append(conn.WriteAcc, q)
 	var err error
-	if (flushnow && !conn.FlushLock)||
-		(!conn.FlushLock && conn.WriteCfg.AccLimit > 0 && pos >= conn.WriteCfg.AccLimit) {
-
+	if flushnow || (conn.WriteCfg.AccLimit > 0 && pos >= conn.WriteCfg.AccLimit) {
 		if flushnow {
 			println("flushnow!")
 			println(q)
@@ -106,8 +106,10 @@ func (conn *Connector) DirectInsert(query string) (*sql.Rows, error) {
 }
 
 func (conn *Connector) FlushNow(timeout bool) error {
-	conn.FlushLock = true
-	defer func(){conn.FlushLock = false}()
+
+	conn.FlushLock.Lock()
+	defer conn.FlushLock.Unlock()
+
 	trigger := "count"
 	if timeout {
 		trigger = "timeout"
