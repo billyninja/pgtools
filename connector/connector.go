@@ -83,7 +83,6 @@ func (conn *Connector) Insert(q string, flushnow bool) (bool, bool, error) {
 	if flushnow || (conn.WriteCfg.AccLimit > 0 && pos >= conn.WriteCfg.AccLimit) {
 		if flushnow {
 			println("flushnow!")
-			println(q)
 		}
 
 		err = conn.FlushNow(false)
