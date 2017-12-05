@@ -120,11 +120,17 @@ func (conn *Connector) FlushNow(timeout bool) error {
 
 	tq := strings.Join(acc, "; ")
 	t1 := time.Now()
+
 	_, err := conn.DB.Exec(tq)
 	lat := time.Since(t1)
 	if err != nil {
 		log.Printf("ERROR: \n\n\n %s \n\n\n", tq)
-		conn.WriteAcc = append(conn.WriteAcc, acc...)
+
+		for _, q := range acc {
+			log.Printf("Drain down\n")
+			conn.Insert(q, true)
+		}
+
 		return err
 	}
 	if timeout {
