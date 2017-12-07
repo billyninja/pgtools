@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"github.com/billyninja/pgtools/admin"
 	"github.com/billyninja/pgtools/bench"
 	"github.com/billyninja/pgtools/connector"
 	"github.com/billyninja/pgtools/scanner"
@@ -56,5 +57,5 @@ func main() {
 	}
 	println(sim_params)
 	//bench.Sim(conn, sim_params)
-	bench.ScratchAdmin(conn)
+	admin.ScratchAdmin(conn)
 }
