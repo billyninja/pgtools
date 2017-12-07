@@ -54,6 +54,7 @@ func main() {
 		SleepPerRead:     rps,
 		SleepPerInsert:   ips,
 	}
-
-	bench.Sim(conn, sim_params)
+	println(sim_params)
+	//bench.Sim(conn, sim_params)
+	bench.ScratchAdmin(conn)
 }
