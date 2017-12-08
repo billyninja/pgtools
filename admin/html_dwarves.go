@@ -69,6 +69,19 @@ func ThHTML(cl *scanner.Column) template.HTML {
     return template.HTML("<th>" + cl.Name + "</th>")
 }
 
+func LabelHTML(cl *scanner.Column) template.HTML {
+    return template.HTML("<label>" + cl.Name + "</label>")
+}
+
+func LabelAndInputHTML(cl *scanner.Column, value interface{}) template.HTML {
+
+    label := LabelHTML(cl)
+    input := InputHTML(cl, value)
+
+    // TODO-improvement: configurable label-class, input class
+    return template.HTML(`<div class="form-group"><div class="">` + label + `</div><div class="">` + input + `</div></div>`)
+}
+
 func TdHTML(cl *scanner.Column, value interface{}) template.HTML {
     return template.HTML("<td>" + format_value(value) + "</td>")
 }
