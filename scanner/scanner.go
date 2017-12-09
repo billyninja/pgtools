@@ -167,3 +167,12 @@ func getColumnByName(tb *Table, name ColumnName) *Column {
 	}
 	return nil
 }
+
+func (tb *Table) GetPK() *Constraint {
+	for _, ct := range tb.Constraints {
+		if ct.Type == "PRIMARY KEY" {
+			return ct
+		}
+	}
+	return nil
+}

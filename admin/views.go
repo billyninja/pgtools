@@ -5,7 +5,7 @@ import (
     "github.com/jmoiron/sqlx"
     "html/template"
     "io"
-    "os"
+    "strings"
 )
 
 type EditView struct {
@@ -16,9 +16,10 @@ type EditView struct {
 }
 
 type ListView struct {
-    Columns []template.HTML
-    Rows    []template.HTML
-    Table   *scanner.Table
+    Columns    []template.HTML
+    Rows       []template.HTML
+    Table      *scanner.Table
+    PkIndexing []int
     // Actions []BulkAction
 }
 
@@ -44,14 +45,34 @@ func mapCols(sql_cols []string, columns []*scanner.Column, mylist *[]template.HT
     return sortedColumns
 }
 
-func mapValues(columns []*scanner.Column, rows *sqlx.Rows, mylist *[]template.HTML, htmlgen val2html) {
+func in(i int, l []int) bool {
+    for _, j := range l {
+        if i == j {
+            return true
+        }
+    }
+    return false
+}
+
+func mapValues(columns []*scanner.Column, pk_idx []int, rows *sqlx.Rows, rowlist *[]template.HTML, htmlgen val2html) {
     for rows.Next() {
         t_row := template.HTML("")
         sortedValues, _ := rows.SliceScan()
+
+        pkval := ""
         for i, cl := range columns {
-            t_row += htmlgen(cl, sortedValues[i])
+            fval := format_value(sortedValues[i])
+            t_row += htmlgen(cl, fval)
+
+            if len(pk_idx) > 0 {
+                if in(i, pk_idx) {
+                    pkval += "-" + fval
+                }
+            }
         }
-        *mylist = append(*mylist, t_row)
+        t_row += template.HTML(`<input type="hidden" value="` + pkval + `" />`)
+
+        *rowlist = append(*rowlist, t_row)
     }
 }
 
@@ -62,7 +83,7 @@ func NewEditView(table *scanner.Table, rows *sqlx.Rows) *EditView {
     sql_cols, _ := rows.Columns()
 
     sortedColumns := mapCols(sql_cols, table.Columns, &ev.Labels, LabelHTML)
-    mapValues(sortedColumns, rows, &ev.Inputs, LabelAndInputHTML)
+    mapValues(sortedColumns, []int{}, rows, &ev.Inputs, LabelAndInputHTML)
 
     return ev
 }
@@ -96,13 +117,33 @@ func (ev *EditView) CompleteHTML(buffer io.Writer) {
 
 }
 
+func buildPkIndexing(sortedColumns []*scanner.Column, pk *scanner.Constraint) []int {
+    idx := []int{}
+    pk_columns := strings.Split(pk.Columns, ",")
+
+    for i, cl := range sortedColumns {
+        for _, pk_cl := range pk_columns {
+
+            if cl.Name == scanner.ColumnName(pk_cl) {
+                idx = append(idx, i)
+            }
+        }
+    }
+
+    return idx
+}
+
 /* LIST VIEW IMPLEMENTATION */
 func NewListView(table *scanner.Table, rows *sqlx.Rows) *ListView {
     lv := &ListView{}
     sql_cols, _ := rows.Columns()
 
     sortedColumns := mapCols(sql_cols, table.Columns, &lv.Columns, ThHTML)
-    mapValues(sortedColumns, rows, &lv.Rows, TdHTML)
+
+    pk := table.GetPK()
+    lv.PkIndexing = buildPkIndexing(sortedColumns, pk)
+
+    mapValues(sortedColumns, lv.PkIndexing, rows, &lv.Rows, TdHTML)
 
     return lv
 }

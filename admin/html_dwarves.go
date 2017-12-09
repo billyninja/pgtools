@@ -122,7 +122,7 @@ func format_value(value interface{}) string {
         return v
     case float64, float32:
         return fmt.Sprintf(`%.2f`, v)
-    case int, uint8, uint16, int64:
+    case int, uint8, int8, uint16, int16, uint32, int32, int64:
         return fmt.Sprintf(`%d`, v)
     case time.Time:
         return fmt.Sprintf(`%s`, v.Format("2006-01-02T15:04:05"))

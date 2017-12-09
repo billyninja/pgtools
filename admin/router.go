@@ -78,8 +78,10 @@ func ListHandler(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 
     tb := getTable(r)
     println("here", tb)
+
     q := QueryListAll(tb.Name)
     println("here", q)
+
     rows, err := conn_.Sel(q)
     if err != nil {
         log.Printf("Couldn't query table data!")
@@ -95,6 +97,5 @@ func ListHandler(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
         return
     }
 
-    w.WriteHeader(http.StatusOK)
     return
 }
