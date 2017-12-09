@@ -31,17 +31,6 @@ func QueryListAll(table scanner.TableName) string {
 
 var edit_template_body, list_template_body *template.Template
 
-func ListEntries(table *scanner.Table, rows *sqlx.Rows) error {
-    var err error
-
-    buffer := &bytes.Buffer{}
-    lv := NewListView(table, rows)
-    lv.PartialHTML(buffer)
-    //fmt.Printf(">%s", buffer)
-
-    return err
-}
-
 func EditEntry(table *scanner.Table, rows *sqlx.Rows) error {
     var err error
 

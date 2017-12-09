@@ -1,12 +1,11 @@
 package admin
 
 import (
-    //    "fmt"
-    //    "time"
     "github.com/billyninja/pgtools/scanner"
     "github.com/jmoiron/sqlx"
     "html/template"
     "io"
+    "os"
 )
 
 type EditView struct {
@@ -112,24 +111,23 @@ func (lv *ListView) GetTitle() string {
     return " " + string(lv.Table.Name) + " list view"
 }
 
-func (lv *ListView) PartialHTML(buffer io.Writer) error {
+func (lv *ListView) PartialHTML(w io.Writer) error {
     var err error
-
     // TODO: MAKE IT EXTERNAL parameter
     // or at Creation time
 
     livereload := true
     if livereload {
-        list_template_body, err = template.ParseFiles("admin/templates/list.html")
+        list_template_body, err = template.ParseFiles("/home/joao/go/src/github.com/billyninja/pgtools/admin/templates/list.html")
         if err != nil {
             return err
         }
     }
-    err = list_template_body.ExecuteTemplate(buffer, "list.html", lv)
+
+    err = list_template_body.ExecuteTemplate(w, "list.html", lv)
     if err != nil {
         println("errd ExecuteTemplate ", err)
     }
-
     return err
 }
 
