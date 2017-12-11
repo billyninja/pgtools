@@ -73,6 +73,39 @@ func StubHandler(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
     return
 }
 
+func QueryFetchOne(tb scanner.TableName, pk_str string) {
+    // TODO:  move to a query-builder file
+    strings.Split("---")
+    return ""
+}
+
+func EditHandler(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+    w.Header().Set("Content-Type", "text/html")
+
+    tb := getTable(r)
+    println("here", tb)
+
+    q := QueryFetchOne(tb.Name, pk)
+    println("here", q)
+
+    rows, err := conn_.Sel(q)
+    if err != nil {
+        log.Printf("Couldn't query table data!")
+        w.WriteHeader(http.StatusBadRequest)
+        return
+    }
+
+    ev := NewEditView(tb, rows)
+    err = ev.PartialHTML(w)
+    if err != nil {
+        log.Printf("Template Error!\n%s\n", err)
+        w.WriteHeader(http.StatusBadRequest)
+        return
+    }
+
+    return
+}
+
 func ListHandler(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
     w.Header().Set("Content-Type", "text/html")
 
