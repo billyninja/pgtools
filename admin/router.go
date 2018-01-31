@@ -73,9 +73,11 @@ func StubHandler(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
     return
 }
 
-func QueryFetchOne(tb scanner.TableName, pk_str string) {
+func QueryFetchOne(tb scanner.TableName, pk_str string) string {
     // TODO:  move to a query-builder file
-    strings.Split("---")
+    for _, x := range strings.Split(pk_str, "---") {
+        println(x)
+    }
     return ""
 }
 
@@ -85,6 +87,7 @@ func EditHandler(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
     tb := getTable(r)
     println("here", tb)
 
+    pk := "TODOTODOTODOTODO"
     q := QueryFetchOne(tb.Name, pk)
     println("here", q)
 

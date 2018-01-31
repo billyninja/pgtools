@@ -81,10 +81,6 @@ func (conn *Connector) Insert(q string, flushnow bool) (bool, bool, error) {
 	conn.WriteAcc = append(conn.WriteAcc, q)
 	var err error
 	if flushnow || (conn.WriteCfg.AccLimit > 0 && pos >= conn.WriteCfg.AccLimit) {
-		if flushnow {
-			println("flushnow!")
-		}
-
 		err = conn.FlushNow(false)
 		if err == nil {
 			persisted = true
@@ -126,9 +122,14 @@ func (conn *Connector) FlushNow(timeout bool) error {
 	if err != nil {
 		log.Printf("ERROR: \n\n\n %s \n\n\n", tq)
 
+		log.Printf("Starting Drain down...\n%d queries on the queue\n\n", len(acc))
 		for _, q := range acc {
-			log.Printf("Drain down\n")
-			conn.Insert(q, true)
+			println(".")
+			_, _, err = conn.Insert(q, true)
+			if err != nil {
+				msg := fmt.Sprintf(" Errd in Drain down: \n\n%s\n\n", err)
+				log.Printf(colors.Red(msg))
+			}
 		}
 
 		return err
