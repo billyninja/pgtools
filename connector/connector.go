@@ -64,6 +64,16 @@ func NewConnector(host, port, user, pass, db string) (*Connector, error) {
 	return cn, nil
 }
 
+func (conn *Connector) Exec(q string) (int64, error) {
+	_, err := conn.DB.Exec(q)
+	if err != nil {
+		log.Println("%v", err)
+		log.Println(q)
+	}
+
+	return 1, err
+}
+
 func (conn *Connector) Sel(q string) (*sqlx.Rows, error) {
 	var rows *sqlx.Rows
 	rows, err := conn.DB.Queryx(q)
