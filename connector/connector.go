@@ -42,7 +42,7 @@ func (cn *Connector) CheckFlushTimeout() {
 
 func NewConnector(host, port, user, pass, db string) (*Connector, error) {
 	strConn := fmt.Sprintf(
-		"dbname=%s user=%s password=%s host=%s port=%s sslmode=disable",
+		"dbname=%s user=%s password=%s host=%s port=%s connect_timeout=3 sslmode=disable",
 		db,
 		user,
 		pass,
@@ -51,7 +51,7 @@ func NewConnector(host, port, user, pass, db string) (*Connector, error) {
 	)
 	dbc := sqlx.MustOpen("postgres", strConn)
 
-	wcfg := &WriteCfg{128, 5000 * time.Millisecond}
+	wcfg := &WriteCfg{16, 5000 * time.Millisecond}
 	cn := &Connector{
 		WriteCfg: wcfg,
 		WriteAcc: []string{},
@@ -67,8 +67,8 @@ func NewConnector(host, port, user, pass, db string) (*Connector, error) {
 func (conn *Connector) Exec(q string) (int64, error) {
 	_, err := conn.DB.Exec(q)
 	if err != nil {
-		log.Println("%v", err)
-		log.Println(q)
+		log.Println("pgpool exec err:", err)
+		log.Println("pgpool err at exec query:", q)
 	}
 
 	return 1, err
@@ -78,8 +78,8 @@ func (conn *Connector) Sel(q string) (*sqlx.Rows, error) {
 	var rows *sqlx.Rows
 	rows, err := conn.DB.Queryx(q)
 	if err != nil {
-		log.Println("%v", err)
-		log.Println(q)
+		log.Println("pgpool sel err:", err)
+		log.Println("pgpool err at sel query:", q)
 	}
 
 	return rows, err
@@ -111,10 +111,6 @@ func (conn *Connector) DirectInsert(query string) (*sql.Rows, error) {
 }
 
 func (conn *Connector) FlushNow(timeout bool) error {
-
-	conn.FlushLock.Lock()
-	defer conn.FlushLock.Unlock()
-
 	trigger := "count"
 	if timeout {
 		trigger = "timeout"
@@ -131,26 +127,27 @@ func (conn *Connector) FlushNow(timeout bool) error {
 	lat := time.Since(t1)
 	if err != nil {
 		log.Printf("ERROR: \n\n\n %s \n\n\n", tq)
+		if len(acc) > 1 {
+			log.Printf("Starting Drain down...\n%d queries on the queue\n\n", len(acc))
+			for _, q := range acc {
+				println(".")
+				_, _, err = conn.Insert(q, true)
+				if err != nil {
+					msg := fmt.Sprintf(" Errd in Drain down: \n\n%s\n\n", err)
+					log.Printf(colors.Red(msg))
 
-		log.Printf("Starting Drain down...\n%d queries on the queue\n\n", len(acc))
-		for _, q := range acc {
-			println(".")
-			_, _, err = conn.Insert(q, true)
-			if err != nil {
-				msg := fmt.Sprintf(" Errd in Drain down: \n\n%s\n\n", err)
-				log.Printf(colors.Red(msg))
+				}
 			}
 		}
 
 		return err
 	}
-	if timeout {
-		log.Printf("<%s -%s- %d - s: %d l: %s>\n",
-			colors.Green("FLUSHED!"),
-			colors.Yellow(trigger),
-			len(acc),
-			len(tq), lat)
-	}
+
+	log.Printf("<%s -%s- %d - s: %d l: %s>\n",
+		colors.Green("FLUSHED!"),
+		colors.Yellow(trigger),
+		len(acc),
+		len(tq), lat)
 
 	conn.LastFlush = time.Now()
 	return err
